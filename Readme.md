@@ -171,7 +171,7 @@ sequenceDiagram
 1. **Clone the repository**
 
    ```bash
-   git clone https://github.com/yourusername/intelligmarket.git
+   git clone https://github.com/fenil210/intelligmarket.git
    cd intelligmarket
    ```
 2. **Set up virtual environment**
