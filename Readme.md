@@ -461,40 +461,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-- **Documentation**: [docs.agno.com](https://docs.agno.com)
-- **Issues**: [GitHub Issues](https://github.com/yourusername/intelligmarket/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/intelligmarket/discussions)
-- **Email**: support@intelligmarket.dev
-
-## 🗺️ Roadmap
-
-### Version 2.0 (Q2 2024)
-
-- [ ] Portfolio tracking and management
-- [ ] Risk management tools
-- [ ] Email alert system
-- [ ] Advanced charting capabilities
-
-### Version 2.1 (Q3 2024)
-
-- [ ] Social sentiment analysis
-- [ ] Options analysis tools
-- [ ] Backtesting capabilities
-- [ ] Mobile application
-
-### Version 3.0 (Q4 2024)
-
-- [ ] Machine learning predictions
-- [ ] Custom model training
-- [ ] Advanced risk analytics
-- [ ] Enterprise features
-
----
+- **Email**: fenilramoliya2103@gmail.com
 
 <div align="center">
 
 **⭐ Star this repository if you find it useful!**
 
-Made with ❤️ by the IntelliMarket team
+Made with ❤️ by the Fenil Ramoliya for investment geeks
 
 </div>
