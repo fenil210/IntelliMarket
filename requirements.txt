@@ -1,0 +1,16 @@
+agno
+streamlit
+fastapi
+google-generativeai
+yfinance
+duckduckgo-search
+newspaper4k
+plotly
+pandas
+numpy
+reportlab
+jinja2
+python-dotenv
+requests
+beautifulsoup4
+google-genai

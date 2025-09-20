@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IntelliMarket Research Platform</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-chart-line"></i>
+                    <h1>IntelliMarket</h1>
+                    <span class="subtitle">AI-Powered Investment Analysis</span>
+                </div>
+                <div class="status-indicator">
+                    <div class="status-item">
+                        <span class="status-label">API Status:</span>
+                        <span id="api-status" class="status-value connecting">Connecting...</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Model:</span>
+                        <span class="status-value">Gemini 1.5 Flash</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <div class="analysis-types">
+                    <h3>Analysis Types</h3>
+                    <div class="analysis-buttons">
+                        <button class="analysis-btn active" data-type="stock">
+                            <i class="fas fa-building"></i>
+                            Single Stock Analysis
+                        </button>
+                        <button class="analysis-btn" data-type="comparison">
+                            <i class="fas fa-balance-scale"></i>
+                            Stock Comparison
+                        </button>
+                        <button class="analysis-btn" data-type="research">
+                            <i class="fas fa-globe"></i>
+                            Market Research
+                        </button>
+                        <button class="analysis-btn" data-type="query">
+                            <i class="fas fa-question-circle"></i>
+                            Custom Query
+                        </button>
+                    </div>
+                </div>
+
+                <div class="analysis-options">
+                    <h4>Analysis Depth</h4>
+                    <div class="radio-group">
+                        <label class="radio-option">
+                            <input type="radio" name="analysis-depth" value="quick" checked>
+                            <span class="radio-label">Quick Analysis</span>
+                            <small>Faster, essential metrics</small>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="analysis-depth" value="comprehensive">
+                            <span class="radio-label">Comprehensive</span>
+                            <small>Detailed, multi-agent analysis</small>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="recent-analyses">
+                    <h4>Recent Analyses</h4>
+                    <div id="recent-list" class="recent-list">
+                        <p class="no-recent">No recent analyses</p>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Content Area -->
+            <section class="content-area">
+                <!-- Stock Analysis Form -->
+                <div id="stock-form" class="analysis-form active">
+                    <div class="form-header">
+                        <h2>Single Stock Analysis</h2>
+                        <p>Analyze individual stocks with comprehensive AI-powered insights</p>
+                    </div>
+                    
+                    <div class="input-section">
+                        <div class="input-group">
+                            <label for="stock-symbol">Stock Symbol</label>
+                            <input 
+                                type="text" 
+                                id="stock-symbol" 
+                                placeholder="e.g., AAPL, MSFT, TSLA" 
+                                maxlength="5"
+                                autocomplete="off"
+                            >
+                            <div class="symbol-validation" id="symbol-validation"></div>
+                        </div>
+                        <button id="analyze-stock-btn" class="primary-btn">
+                            <i class="fas fa-chart-line"></i>
+                            Analyze Stock
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Comparison Form -->
+                <div id="comparison-form" class="analysis-form">
+                    <div class="form-header">
+                        <h2>Stock Comparison</h2>
+                        <p>Compare multiple stocks side by side</p>
+                    </div>
+                    
+                    <div class="input-section">
+                        <div class="input-group">
+                            <label for="comparison-symbols">Stock Symbols (comma-separated)</label>
+                            <input 
+                                type="text" 
+                                id="comparison-symbols" 
+                                placeholder="e.g., AAPL, MSFT, GOOGL" 
+                                autocomplete="off"
+                            >
+                            <small>Enter 2-5 stock symbols separated by commas</small>
+                        </div>
+                        <button id="compare-stocks-btn" class="primary-btn">
+                            <i class="fas fa-balance-scale"></i>
+                            Compare Stocks
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Research Form -->
+                <div id="research-form" class="analysis-form">
+                    <div class="form-header">
+                        <h2>Market Research</h2>
+                        <p>Research market topics, trends, and sentiment</p>
+                    </div>
+                    
+                    <div class="input-section">
+                        <div class="input-group">
+                            <label for="research-topic">Research Topic</label>
+                            <input 
+                                type="text" 
+                                id="research-topic" 
+                                placeholder="e.g., AI stocks, renewable energy, crypto market" 
+                                autocomplete="off"
+                            >
+                        </div>
+                        <button id="research-btn" class="primary-btn">
+                            <i class="fas fa-search"></i>
+                            Start Research
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Query Form -->
+                <div id="query-form" class="analysis-form">
+                    <div class="form-header">
+                        <h2>Custom Query</h2>
+                        <p>Ask any investment-related question</p>
+                    </div>
+                    
+                    <div class="input-section">
+                        <div class="input-group">
+                            <label for="custom-query">Your Question</label>
+                            <textarea 
+                                id="custom-query" 
+                                rows="4" 
+                                placeholder="Ask any investment-related question..."
+                                autocomplete="off"
+                            ></textarea>
+                        </div>
+                        <button id="query-btn" class="primary-btn">
+                            <i class="fas fa-brain"></i>
+                            Process Query
+                        </button>
+                    </div>
+
+                    <div class="query-examples">
+                        <h4>Example Queries</h4>
+                        <div class="example-queries">
+                            <span class="example-query">"Should I invest in Tesla right now?"</span>
+                            <span class="example-query">"Compare NVDA vs AMD for AI investments"</span>
+                            <span class="example-query">"What are the risks of tech stocks?"</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results Area -->
+                <div id="results-area" class="results-area hidden">
+                    <div class="results-header">
+                        <h3 id="results-title">Analysis Results</h3>
+                        <div class="results-actions">
+                            <button id="download-btn" class="secondary-btn">
+                                <i class="fas fa-download"></i>
+                                Download Report
+                            </button>
+                            <button id="clear-results-btn" class="secondary-btn">
+                                <i class="fas fa-times"></i>
+                                Clear
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="results-content" class="results-content">
+                        <!-- Results will be populated here -->
+                    </div>
+                </div>
+
+                <!-- Loading Area -->
+                <div id="loading-area" class="loading-area hidden">
+                    <div class="loading-content">
+                        <div class="loading-spinner"></div>
+                        <h3 id="loading-title">Processing Analysis...</h3>
+                        <p id="loading-message">This may take a few minutes</p>
+                        <div class="progress-bar">
+                            <div id="progress-fill" class="progress-fill"></div>
+                        </div>
+                        <div id="progress-text" class="progress-text">0%</div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/api.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
