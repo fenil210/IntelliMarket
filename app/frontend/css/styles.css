@@ -730,3 +730,213 @@ body {
 .markdown-table td:nth-child(2):contains("HOLD") {
     color: #ed8936;
 }
+
+/* Professional Markdown Content Styling */
+.results-content {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    line-height: 1.7;
+    color: #2d3748;
+}
+
+/* Headers with proper hierarchy */
+.markdown-h1 {
+    font-size: 1.875rem;
+    font-weight: 700;
+    color: #1a202c;
+    margin: 2rem 0 1rem 0;
+    padding-bottom: 0.5rem;
+    border-bottom: 3px solid #667eea;
+}
+
+.markdown-h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #2d3748;
+    margin: 1.5rem 0 0.8rem 0;
+    padding-left: 0.5rem;
+    border-left: 4px solid #667eea;
+}
+
+.markdown-h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #2d3748;
+    margin: 1.2rem 0 0.6rem 0;
+}
+
+.markdown-h4 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #4a5568;
+    margin: 1rem 0 0.5rem 0;
+}
+
+/* Paragraphs with proper spacing */
+.markdown-paragraph {
+    margin: 0.8rem 0;
+    line-height: 1.7;
+    color: #4a5568;
+    text-align: justify;
+}
+
+/* Content spacer for better visual separation */
+.content-spacer {
+    height: 1rem;
+}
+
+/* Lists with better styling */
+.markdown-list {
+    margin: 1rem 0;
+    padding-left: 1.5rem;
+}
+
+.markdown-list li {
+    margin: 0.5rem 0;
+    padding-left: 0.5rem;
+    position: relative;
+}
+
+.markdown-list li::before {
+    content: "•";
+    color: #667eea;
+    font-size: 1.2rem;
+    position: absolute;
+    left: -1rem;
+    top: 0;
+}
+
+/* Strong and emphasis */
+.markdown-paragraph strong,
+.markdown-list strong {
+    font-weight: 700;
+    color: #2d3748;
+    background: linear-gradient(120deg, rgba(102, 126, 234, 0.1) 0%, rgba(102, 126, 234, 0.05) 100%);
+    padding: 0.1rem 0.3rem;
+    border-radius: 3px;
+}
+
+.markdown-paragraph em,
+.markdown-list em {
+    font-style: italic;
+    color: #2d3748;
+    background: rgba(102, 126, 234, 0.05);
+    padding: 0.1rem 0.2rem;
+    border-radius: 2px;
+}
+
+/* Horizontal rules */
+.markdown-hr {
+    border: none;
+    height: 2px;
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    margin: 2rem 0;
+    border-radius: 1px;
+}
+
+/* Inline code */
+.inline-code {
+    background: #f7fafc;
+    color: #e53e3e;
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.9em;
+    border: 1px solid #e2e8f0;
+}
+
+/* Financial styling */
+.financial-amount {
+    font-weight: 600;
+    color: #38a169;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    background: rgba(56, 161, 105, 0.1);
+    padding: 0.1rem 0.3rem;
+    border-radius: 3px;
+}
+
+.percentage {
+    font-weight: 600;
+    color: #3182ce;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    background: rgba(49, 130, 206, 0.1);
+    padding: 0.1rem 0.3rem;
+    border-radius: 3px;
+}
+
+.stock-symbol {
+    font-weight: 600;
+    color: #667eea;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    background: rgba(102, 126, 234, 0.1);
+    padding: 0.1rem 0.3rem;
+    border-radius: 3px;
+    text-transform: uppercase;
+}
+
+/* Links */
+.markdown-paragraph a,
+.markdown-list a {
+    color: #667eea;
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.markdown-paragraph a:hover,
+.markdown-list a:hover {
+    border-bottom-color: #667eea;
+    background: rgba(102, 126, 234, 0.05);
+}
+
+/* Special styling for recommendation text */
+.markdown-paragraph:has(.stock-symbol) {
+    background: #f8fafc;
+    padding: 0.8rem;
+    border-left: 4px solid #667eea;
+    border-radius: 0 6px 6px 0;
+    margin: 1rem 0;
+}
+
+/* Investment recommendation styling */
+.results-content p:contains("BUY"),
+.results-content p:contains("SELL"),
+.results-content p:contains("HOLD") {
+    background: #f8fafc;
+    padding: 1rem;
+    border-radius: 8px;
+    border-left: 4px solid #667eea;
+    margin: 1rem 0;
+    font-weight: 500;
+}
+
+/* Better spacing for financial reports */
+.results-content > *:first-child {
+    margin-top: 0;
+}
+
+.results-content > *:last-child {
+    margin-bottom: 0;
+}
+
+/* Responsive typography */
+@media (max-width: 768px) {
+    .markdown-h1 {
+        font-size: 1.5rem;
+    }
+    
+    .markdown-h2 {
+        font-size: 1.25rem;
+    }
+    
+    .markdown-h3 {
+        font-size: 1.125rem;
+    }
+    
+    .markdown-paragraph {
+        text-align: left;
+    }
+    
+    .markdown-list {
+        padding-left: 1rem;
+    }
+}

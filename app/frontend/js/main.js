@@ -375,28 +375,97 @@ class IntelliMarketApp {
     formatMarkdown(text) {
         if (!text) return '<p>No content available</p>';
         
-        // First, handle tables
+        // Clean up the text first
+        text = text.trim();
+        
+        // Handle tables first (before other processing)
         text = this.parseMarkdownTables(text);
         
-        // Then handle other markdown elements
-        return text
-            .replace(/^# (.*$)/gm, '<h1>$1</h1>')
-            .replace(/^## (.*$)/gm, '<h2>$1</h2>')
-            .replace(/^### (.*$)/gm, '<h3>$1</h3>')
-            .replace(/^#### (.*$)/gm, '<h4>$1</h4>')
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/\*(.*?)\*/g, '<em>$1</em>')
-            .replace(/^- (.*$)/gm, '<li>$1</li>')
-            .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
-            .replace(/\n\n/g, '</p><p>')
-            .replace(/^(.*)$/gm, '<p>$1</p>')
-            .replace(/<p><\/p>/g, '')
-            .replace(/<p>(<h[1-6]>)/g, '$1')
-            .replace(/(<\/h[1-6]>)<\/p>/g, '$1')
-            .replace(/<p>(<ul>)/g, '$1')
-            .replace(/(<\/ul>)<\/p>/g, '$1')
-            .replace(/<p>(<table)/g, '$1')
-            .replace(/(<\/table>)<\/p>/g, '$1');
+        // Handle horizontal rules
+        text = text.replace(/^-{3,}$/gm, '<hr class="markdown-hr">');
+        
+        // Split into lines for processing
+        const lines = text.split('\n');
+        const processedLines = [];
+        let inList = false;
+        
+        for (let i = 0; i < lines.length; i++) {
+            let line = lines[i];
+            
+            // Skip empty lines (we'll handle spacing differently)
+            if (line.trim() === '') {
+                if (inList) {
+                    processedLines.push('</ul>');
+                    inList = false;
+                }
+                processedLines.push('<div class="content-spacer"></div>');
+                continue;
+            }
+            
+            // Handle headers (must be at start of line)
+            if (line.match(/^#{1,6}\s/)) {
+                if (inList) {
+                    processedLines.push('</ul>');
+                    inList = false;
+                }
+                const level = line.match(/^#+/)[0].length;
+                const headerText = line.replace(/^#+\s*/, '').trim();
+                processedLines.push(`<h${level} class="markdown-h${level}">${this.formatInlineMarkdown(headerText)}</h${level}>`);
+                continue;
+            }
+            
+            // Handle bullet points
+            if (line.match(/^\s*[\*\-]\s/)) {
+                if (!inList) {
+                    processedLines.push('<ul class="markdown-list">');
+                    inList = true;
+                }
+                const listText = line.replace(/^\s*[\*\-]\s*/, '').trim();
+                processedLines.push(`<li>${this.formatInlineMarkdown(listText)}</li>`);
+                continue;
+            } else if (inList) {
+                processedLines.push('</ul>');
+                inList = false;
+            }
+            
+            // Handle regular paragraphs
+            if (line.trim() && !line.includes('<table') && !line.includes('</table>')) {
+                processedLines.push(`<p class="markdown-paragraph">${this.formatInlineMarkdown(line.trim())}</p>`);
+            } else {
+                // Keep table content as-is
+                processedLines.push(line);
+            }
+        }
+        
+        // Close any open list
+        if (inList) {
+            processedLines.push('</ul>');
+        }
+        
+        return processedLines.join('\n');
+    }
+
+    formatInlineMarkdown(text) {
+        // Handle bold text (**text** and *text*)
+        text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+        text = text.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+        
+        // Handle inline code
+        text = text.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
+        
+        // Handle links [text](url)
+        text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+        
+        // Handle financial symbols like $XXX
+        text = text.replace(/\$([0-9]+(?:\.[0-9]+)?[KMB]?)/g, '<span class="financial-amount">$$1</span>');
+        
+        // Handle percentages
+        text = text.replace(/([0-9]+(?:\.[0-9]+)?%)/g, '<span class="percentage">$1</span>');
+        
+        // Handle stock symbols (uppercase 2-5 letters)
+        text = text.replace(/\b([A-Z]{2,5})\b(?!\s*[a-z])/g, '<span class="stock-symbol">$1</span>');
+        
+        return text;
     }
 
     parseMarkdownTables(text) {
