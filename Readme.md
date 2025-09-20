@@ -17,7 +17,7 @@
 
 [![Python](https://img.shields.io/badge/python-v3.8+-blue.svg)](https://www.python.org/downloads/)
 [![Framework](https://img.shields.io/badge/framework-AGNO-purple.svg)](https://docs.agno.com)
-[![AI Model](https://img.shields.io/badge/ai-Gemini%201.5%20Flash-orange.svg)](https://ai.google.dev)
+[![AI Model](https://img.shields.io/badge/ai-Gemini%202.5%20Flash-orange.svg)](https://ai.google.dev)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
