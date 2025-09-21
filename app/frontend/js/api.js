@@ -1,49 +1,47 @@
 /**
- * API Communication Module
- * Handles all communication with the backend API
+ * IntelliMarket API Client
+ * Handles all API communication with the backend
  */
 
 class IntelliMarketAPI {
     constructor() {
         this.baseURL = 'http://127.0.0.1:5000/api';
-        this.isConnected = false;
-        this.initializeAPI();
+        this.timeout = 300000; // 5 minutes
+        this.checkConnection();
     }
 
-    async initializeAPI() {
+    async checkConnection() {
         try {
-            await this.checkHealth();
-            this.isConnected = true;
-            this.updateConnectionStatus('connected');
+            const response = await fetch('http://127.0.0.1:5000/health');
+            const status = document.getElementById('api-status');
+            
+            if (response.ok) {
+                status.textContent = 'Connected';
+                status.className = 'status-value connected';
+            } else {
+                status.textContent = 'Error';
+                status.className = 'status-value error';
+            }
         } catch (error) {
-            console.error('Failed to connect to API:', error);
-            this.isConnected = false;
-            this.updateConnectionStatus('error');
-        }
-    }
-
-    updateConnectionStatus(status) {
-        const statusElement = document.getElementById('api-status');
-        if (statusElement) {
-            statusElement.textContent = status === 'connected' ? 'Connected' : 
-                                      status === 'error' ? 'Error' : 'Connecting...';
-            statusElement.className = `status-value ${status}`;
+            const status = document.getElementById('api-status');
+            status.textContent = 'Disconnected';
+            status.className = 'status-value error';
         }
     }
 
     async makeRequest(endpoint, options = {}) {
         const url = `${this.baseURL}${endpoint}`;
-        
-        const defaultOptions = {
+        const config = {
+            timeout: this.timeout,
             headers: {
                 'Content-Type': 'application/json',
+                ...options.headers
             },
+            ...options
         };
 
-        const finalOptions = { ...defaultOptions, ...options };
-
         try {
-            const response = await fetch(url, finalOptions);
+            const response = await fetch(url, config);
             
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
@@ -52,20 +50,60 @@ class IntelliMarketAPI {
 
             return await response.json();
         } catch (error) {
-            console.error(`API request failed for ${endpoint}:`, error);
+            if (error.name === 'AbortError') {
+                throw new Error('Request timeout - analysis is taking longer than expected');
+            }
             throw error;
         }
     }
 
-    async checkHealth() {
-        return await this.makeRequest('/system/info');
-    }
-
-    async validateSymbol(symbol) {
+    async downloadPDF(content, title) {
         try {
-            return await this.makeRequest(`/validate/symbol/${symbol.toUpperCase()}`);
+            const url = `${this.baseURL}/download/pdf`;
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    content: content,
+                    title: title
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || `Failed to generate PDF: ${response.statusText}`);
+            }
+
+            // Get the PDF blob
+            const blob = await response.blob();
+            
+            // Create download link
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            
+            // Extract filename from response headers or generate one
+            const contentDisposition = response.headers.get('Content-Disposition');
+            let filename = 'IntelliMarket_Report.pdf';
+            
+            if (contentDisposition) {
+                const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                if (filenameMatch && filenameMatch[1]) {
+                    filename = filenameMatch[1].replace(/['"]/g, '');
+                }
+            }
+            
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(downloadUrl);
+            
+            return { success: true, filename: filename };
         } catch (error) {
-            return { valid: false, reason: 'Validation failed' };
+            throw new Error(`PDF download failed: ${error.message}`);
         }
     }
 
@@ -73,19 +111,17 @@ class IntelliMarketAPI {
         return await this.makeRequest('/analyze/stock', {
             method: 'POST',
             body: JSON.stringify({
-                symbol: symbol.toUpperCase(),
+                symbol: symbol,
                 type: analysisType
             })
         });
     }
 
     async compareStocks(symbols) {
-        const cleanSymbols = symbols.map(s => s.trim().toUpperCase()).filter(s => s);
-        
         return await this.makeRequest('/analyze/comparison', {
             method: 'POST',
             body: JSON.stringify({
-                symbols: cleanSymbols
+                symbols: symbols
             })
         });
     }
@@ -94,7 +130,7 @@ class IntelliMarketAPI {
         return await this.makeRequest('/analyze/research', {
             method: 'POST',
             body: JSON.stringify({
-                topic: topic.trim()
+                topic: topic
             })
         });
     }
@@ -103,16 +139,24 @@ class IntelliMarketAPI {
         return await this.makeRequest('/analyze/query', {
             method: 'POST',
             body: JSON.stringify({
-                query: query.trim()
+                query: query
             })
         });
+    }
+
+    async validateSymbol(symbol) {
+        return await this.makeRequest(`/validate/symbol/${encodeURIComponent(symbol)}`);
+    }
+
+    async getSystemInfo() {
+        return await this.makeRequest('/system/info');
     }
 
     async analyzeStockAsync(symbol, analysisType = 'comprehensive') {
         return await this.makeRequest('/analyze/async/stock', {
             method: 'POST',
             body: JSON.stringify({
-                symbol: symbol.toUpperCase(),
+                symbol: symbol,
                 type: analysisType
             })
         });
@@ -122,110 +166,116 @@ class IntelliMarketAPI {
         return await this.makeRequest(`/status/${taskId}`);
     }
 
-    // Utility methods
-    formatError(error) {
-        if (error.message) {
-            return error.message;
-        }
-        return 'An unexpected error occurred. Please try again.';
-    }
-
     isValidSymbol(symbol) {
-        return /^[A-Z]{1,5}$/.test(symbol.toUpperCase());
+        return /^[A-Z]{1,5}$/.test(symbol);
     }
 
-    parseSymbolList(input) {
-        return input.split(',')
-                   .map(s => s.trim().toUpperCase())
-                   .filter(s => s && this.isValidSymbol(s));
+    parseSymbolList(symbolsText) {
+        return symbolsText
+            .split(',')
+            .map(s => s.trim().toUpperCase())
+            .filter(s => s.length > 0);
     }
 
     validateSymbolList(symbols) {
         if (symbols.length < 2) {
-            return { valid: false, error: 'Please enter at least 2 symbols' };
+            return {
+                valid: false,
+                error: 'At least 2 symbols required for comparison'
+            };
         }
+
         if (symbols.length > 5) {
-            return { valid: false, error: 'Maximum 5 symbols allowed' };
+            return {
+                valid: false,
+                error: 'Maximum 5 symbols allowed for comparison'
+            };
         }
-        
-        const invalidSymbols = symbols.filter(s => !this.isValidSymbol(s));
-        if (invalidSymbols.length > 0) {
-            return { valid: false, error: `Invalid symbols: ${invalidSymbols.join(', ')}` };
+
+        for (const symbol of symbols) {
+            if (!this.isValidSymbol(symbol)) {
+                return {
+                    valid: false,
+                    error: `Invalid symbol format: ${symbol} (1-5 letters only)`
+                };
+            }
         }
-        
+
         return { valid: true };
+    }
+
+    formatError(error) {
+        if (typeof error === 'string') {
+            return error;
+        }
+
+        if (error.message) {
+            return error.message;
+        }
+
+        return 'An unexpected error occurred. Please try again.';
     }
 }
 
-// Progress tracking for long-running operations
 class ProgressTracker {
-    constructor(containerId = 'loading-area') {
-        this.container = document.getElementById(containerId);
-        this.progressFill = document.getElementById('progress-fill');
-        this.progressText = document.getElementById('progress-text');
+    constructor() {
+        this.loadingArea = document.getElementById('loading-area');
         this.loadingTitle = document.getElementById('loading-title');
         this.loadingMessage = document.getElementById('loading-message');
-        
+        this.progressFill = document.getElementById('progress-fill');
+        this.progressText = document.getElementById('progress-text');
         this.currentProgress = 0;
-        this.intervalId = null;
+        this.progressInterval = null;
     }
 
-    show(title = 'Processing...', message = 'This may take a few minutes') {
-        if (this.loadingTitle) this.loadingTitle.textContent = title;
-        if (this.loadingMessage) this.loadingMessage.textContent = message;
-        
-        this.container.classList.remove('hidden');
-        this.setProgress(0);
-        this.startSimulatedProgress();
-    }
-
-    hide() {
-        this.container.classList.add('hidden');
-        this.stopProgress();
-    }
-
-    setProgress(percent) {
-        this.currentProgress = Math.max(0, Math.min(100, percent));
-        
-        if (this.progressFill) {
-            this.progressFill.style.width = `${this.currentProgress}%`;
-        }
-        
-        if (this.progressText) {
-            this.progressText.textContent = `${Math.round(this.currentProgress)}%`;
-        }
-    }
-
-    startSimulatedProgress() {
+    show(title, message) {
+        this.loadingTitle.textContent = title;
+        this.loadingMessage.textContent = message;
+        this.loadingArea.classList.remove('hidden');
         this.currentProgress = 0;
-        this.intervalId = setInterval(() => {
+        this.updateProgress(0);
+        this.startProgressAnimation();
+        
+        // Hide results while loading
+        const resultsArea = document.getElementById('results-area');
+        resultsArea.classList.add('hidden');
+    }
+
+    startProgressAnimation() {
+        this.progressInterval = setInterval(() => {
             if (this.currentProgress < 90) {
-                // Slow down as it approaches 90%
-                const increment = Math.max(1, (90 - this.currentProgress) * 0.1);
-                this.setProgress(this.currentProgress + increment);
+                this.currentProgress += Math.random() * 15;
+                if (this.currentProgress > 90) {
+                    this.currentProgress = 90;
+                }
+                this.updateProgress(this.currentProgress);
             }
         }, 500);
     }
 
+    updateProgress(percent) {
+        this.progressFill.style.width = `${percent}%`;
+        this.progressText.textContent = `${Math.round(percent)}%`;
+    }
+
     complete() {
-        this.setProgress(100);
-        setTimeout(() => this.hide(), 500);
-    }
-
-    stopProgress() {
-        if (this.intervalId) {
-            clearInterval(this.intervalId);
-            this.intervalId = null;
+        if (this.progressInterval) {
+            clearInterval(this.progressInterval);
+            this.progressInterval = null;
         }
+        
+        this.updateProgress(100);
+        
+        setTimeout(() => {
+            this.hide();
+        }, 500);
     }
 
-    updateMessage(message) {
-        if (this.loadingMessage) {
-            this.loadingMessage.textContent = message;
+    hide() {
+        this.loadingArea.classList.add('hidden');
+        if (this.progressInterval) {
+            clearInterval(this.progressInterval);
+            this.progressInterval = null;
         }
     }
 }
-
-// Export for use in main.js
-window.IntelliMarketAPI = IntelliMarketAPI;
-window.ProgressTracker = ProgressTracker;

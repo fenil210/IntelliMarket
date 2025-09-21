@@ -37,6 +37,7 @@ IntelliMarket is an enterprise-grade investment research platform that leverages
 - **⚡ High Performance**: ~10,000x faster than LangGraph with minimal memory footprint
 - **🌐 Full-Stack Solution**: REST API backend with professional web frontend
 - **📊 Beautiful UI**: Investment-grade interface with interactive charts and tables
+- **📄 PDF Reports**: Professional PDF generation with financial styling and institutional formatting
 
 ## ✨ Features
 
@@ -72,7 +73,7 @@ IntelliMarket is an enterprise-grade investment research platform that leverages
 
 - Institutional-grade report generation
 - Interactive data tables and visualizations
-- Downloadable markdown reports
+- **Professional PDF Reports**: High-quality PDF downloads with financial styling, proper typography, and institutional formatting
 - Real-time progress tracking
 
 ## 🏗️ Architecture
@@ -89,6 +90,7 @@ graph TB
     subgraph "Backend Layer"
         FLASK[Flask API Server<br/>REST Endpoints]
         WORKFLOWS[Workflow Engine<br/>Agent Coordination]
+        PDF[PDF Generator<br/>ReportLab Engine]
     end
   
     subgraph "AI Agent Layer"
@@ -108,6 +110,7 @@ graph TB
     UI --> API_CLIENT
     API_CLIENT --> FLASK
     FLASK --> WORKFLOWS
+    FLASK --> PDF
     WORKFLOWS --> FA
     WORKFLOWS --> TA
     WORKFLOWS --> RA
@@ -233,6 +236,7 @@ sequenceDiagram
 | `/api/analyze/comparison`       | POST   | Stock comparison        |
 | `/api/analyze/research`         | POST   | Market research         |
 | `/api/analyze/query`            | POST   | Custom query processing |
+| `/api/download/pdf`             | POST   | **Generate PDF report** |
 | `/api/validate/symbol/{symbol}` | GET    | Stock symbol validation |
 
 ### Request Examples
@@ -266,6 +270,18 @@ curl -X POST http://127.0.0.1:5000/api/analyze/research \
   -d '{
     "topic": "AI stocks 2024"
   }'
+```
+
+#### PDF Report Generation
+
+```bash
+curl -X POST http://127.0.0.1:5000/api/download/pdf \
+  -H "Content-Type: application/json" \
+  -d '{
+    "content": {...},
+    "title": "AAPL Analysis Report"
+  }' \
+  --output report.pdf
 ```
 
 ### Configuration
@@ -425,6 +441,7 @@ docker run -p 5000:5000 -e GOOGLE_API_KEY=your_key intelligmarket
 - Comprehensive analysis provides detailed insights (2-5 minutes)
 - Cache results for repeated queries
 - Monitor API usage to optimize costs
+- **PDF Generation**: Optimized for institutional-quality reports with professional formatting
 
 ## 🤝 Contributing
 
@@ -458,6 +475,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Google Gemini**: Advanced AI capabilities for analysis
 - **YFinance**: Real-time financial data access
 - **DuckDuckGo**: Privacy-focused web search capabilities
+- **ReportLab**: Professional PDF generation for institutional reports
 
 ## 📞 Support
 
