@@ -52,12 +52,17 @@ class FinancialDataTool(Toolkit):
             info = ticker.info
             
             if hist.empty:
+                logger.warning(f"No historical data available for {symbol}")
                 return {"error": f"No historical data available for {symbol}"}
             
             # Calculate basic metrics
-            current_price = hist['Close'][-1] if len(hist) > 0 else None
-            price_change = hist['Close'][-1] - hist['Close'][-2] if len(hist) > 1 else 0
-            price_change_pct = (price_change / hist['Close'][-2]) * 100 if len(hist) > 1 else 0
+            current_price = hist['Close'].iloc[-1] if len(hist) > 0 else None
+            price_change = hist['Close'].iloc[-1] - hist['Close'].iloc[-2] if len(hist) > 1 else 0
+            price_change_pct = (price_change / hist['Close'].iloc[-2]) * 100 if len(hist) > 1 else 0
+            
+            # Debug logging for price data
+            logger.info(f"Raw current_price for {symbol}: {current_price}")
+            logger.info(f"Price from hist Close: {hist['Close'].iloc[-1] if len(hist) > 0 else 'No data'}")
             
             # Format market cap properly
             market_cap = info.get("marketCap") or info.get("marketCapitalization")
@@ -87,7 +92,7 @@ class FinancialDataTool(Toolkit):
                 "dividend_yield": round(info.get("dividendYield") * 100, 2) if info.get("dividendYield") else None,
                 "52_week_high": round(info.get("fiftyTwoWeekHigh"), 2) if info.get("fiftyTwoWeekHigh") else None,
                 "52_week_low": round(info.get("fiftyTwoWeekLow"), 2) if info.get("fiftyTwoWeekLow") else None,
-                "volume": int(hist['Volume'][-1]) if len(hist) > 0 else None,
+                "volume": int(hist['Volume'].iloc[-1]) if len(hist) > 0 else None,
                 "avg_volume": int(info.get("averageVolume")) if info.get("averageVolume") else None,
                 "sector": info.get("sector") or "N/A",
                 "industry": info.get("industry") or "N/A",
@@ -106,7 +111,15 @@ class FinancialDataTool(Toolkit):
                 "enterprise_value_formatted": enterprise_value_formatted
             }
             
-            logger.info(f"Successfully processed data for {symbol}: Current Price = ${current_price:.2f}, Market Cap = {market_cap_formatted}")
+            # Critical debugging
+            logger.info(f"FINAL RESULT for {symbol}: current_price = {result['current_price']}, market_cap = {result['market_cap_formatted']}")
+            
+            # Validation check
+            if result['current_price'] is None:
+                logger.error(f"CRITICAL: No current price found for {symbol}")
+                logger.error(f"Historical data length: {len(hist)}")
+                logger.error(f"Info keys: {list(info.keys())[:10]}")
+            
             return result
             
         except Exception as e:

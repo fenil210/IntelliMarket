@@ -265,11 +265,47 @@ class IntelliMarketApp {
     }
 
     renderSimpleResults(data, container) {
-        const content = data.result || data.research_report || data.comparison_report || 'No results available';
+        // Extract content safely for different response types
+        let content = '';
+        
+        if (data.analysis_type === 'market_research') {
+            // Market research returns result as object with research_report
+            if (data.result && typeof data.result === 'object') {
+                content = data.result.research_report || data.result.web_research || '';
+            } else if (typeof data.result === 'string') {
+                content = data.result;
+            }
+        } else if (data.analysis_type === 'custom_query') {
+            // Custom query returns result as string
+            content = data.result || '';
+        } else {
+            // Other analysis types
+            content = data.result || data.research_report || data.comparison_report || '';
+        }
+        
+        // DEBUG: Log raw content before processing
+        console.log('DEBUG: Raw content from backend:', content.substring(0, 500));
+        console.log('DEBUG: Content contains $245.5?', content.includes('$245.5'));
+        console.log('DEBUG: Content contains $1?', content.includes('$1'));
+        
+        // Ensure content is a string before processing
+        if (typeof content !== 'string') {
+            content = JSON.stringify(content, null, 2);
+        }
+        
+        // Fallback if still no content
+        if (!content.trim()) {
+            content = 'No results available';
+        }
+        
+        // DEBUG: Process and log the markdown
+        const processedMarkdown = this.formatMarkdown(content);
+        console.log('DEBUG: Processed markdown contains $245.5?', processedMarkdown.includes('$245.5'));
+        console.log('DEBUG: Processed markdown contains $1?', processedMarkdown.includes('$1'));
         
         container.innerHTML = `
             <div class="simple-results">
-                ${this.formatMarkdown(content)}
+                ${processedMarkdown}
             </div>
         `;
     }
@@ -373,10 +409,17 @@ class IntelliMarketApp {
     }
 
     formatMarkdown(text) {
-        if (!text) return '<p>No content available</p>';
+        // Ensure text is a string and not null/undefined
+        if (!text || typeof text !== 'string') {
+            return '<p>No content available</p>';
+        }
         
         // Clean up the text first
         text = text.trim();
+        
+        if (!text) {
+            return '<p>No content available</p>';
+        }
         
         // Handle tables first (before other processing)
         text = this.parseMarkdownTables(text);
@@ -456,8 +499,10 @@ class IntelliMarketApp {
         // Handle links [text](url)
         text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
         
-        // Handle financial symbols like $XXX
-        text = text.replace(/\$([0-9]+(?:\.[0-9]+)?[KMB]?)/g, '<span class="financial-amount">$$1</span>');
+        // Handle financial symbols like $XXX - FIXED: Use proper replacement syntax
+        text = text.replace(/\$([0-9]+(?:\.[0-9]+)?[KMB]?)/g, function(match, amount) {
+            return `<span class="financial-amount">${amount}</span>`;
+        });
         
         // Handle percentages
         text = text.replace(/([0-9]+(?:\.[0-9]+)?%)/g, '<span class="percentage">$1</span>');
@@ -614,8 +659,19 @@ class IntelliMarketApp {
 
         if (data.analysis_type === 'comprehensive') {
             content = data.result.final_report;
+        } else if (data.analysis_type === 'market_research') {
+            if (data.result && typeof data.result === 'object') {
+                content = data.result.research_report || JSON.stringify(data.result, null, 2);
+            } else {
+                content = data.result || '';
+            }
         } else {
             content = data.result || data.research_report || data.comparison_report;
+        }
+
+        // Ensure content is a string
+        if (typeof content !== 'string') {
+            content = JSON.stringify(content, null, 2);
         }
 
         const blob = new Blob([content], { type: 'text/markdown' });
