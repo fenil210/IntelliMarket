@@ -11,6 +11,17 @@ import logging
 from typing import Dict, List, Any, Optional
 from agno.tools import Toolkit
 from pydantic import BaseModel, Field
+import markdown
+from io import BytesIO
+import tempfile
+import os
+import re
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.lib.colors import HexColor, black, white
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
+from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT, TA_JUSTIFY
 
 logger = logging.getLogger(__name__)
 
@@ -342,6 +353,313 @@ class ChartGenerationTool(Toolkit):
             return f"Comparison chart generation failed: {str(e)}"
 
 
+class PDFGenerationTool(Toolkit):
+    """Tool for generating PDF reports from markdown content using ReportLab"""
+    
+    def __init__(self):
+        self.styles = self._create_styles()
+    
+    def _create_styles(self):
+        """Create custom paragraph styles for the PDF"""
+        styles = getSampleStyleSheet()
+        
+        # Custom styles for financial reports with unique names
+        styles.add(ParagraphStyle(
+            name='IntelliReportTitle',
+            parent=styles['Title'],
+            fontSize=24,
+            spaceAfter=30,
+            alignment=TA_CENTER,
+            textColor=HexColor('#667eea'),
+            fontName='Helvetica-Bold'
+        ))
+        
+        styles.add(ParagraphStyle(
+            name='IntelliReportSubtitle',
+            parent=styles['Normal'],
+            fontSize=12,
+            spaceAfter=20,
+            alignment=TA_CENTER,
+            textColor=HexColor('#718096'),
+            fontName='Helvetica'
+        ))
+        
+        styles.add(ParagraphStyle(
+            name='IntelliHeading1',
+            parent=styles['Normal'],
+            fontSize=18,
+            spaceAfter=12,
+            spaceBefore=24,
+            textColor=HexColor('#1a202c'),
+            fontName='Helvetica-Bold'
+        ))
+        
+        styles.add(ParagraphStyle(
+            name='IntelliHeading2',
+            parent=styles['Normal'],
+            fontSize=14,
+            spaceAfter=8,
+            spaceBefore=16,
+            textColor=HexColor('#2d3748'),
+            fontName='Helvetica-Bold',
+            leftIndent=10
+        ))
+        
+        styles.add(ParagraphStyle(
+            name='IntelliHeading3',
+            parent=styles['Normal'],
+            fontSize=12,
+            spaceAfter=6,
+            spaceBefore=12,
+            textColor=HexColor('#2d3748'),
+            fontName='Helvetica-Bold'
+        ))
+        
+        styles.add(ParagraphStyle(
+            name='IntelliBodyText',
+            parent=styles['Normal'],
+            fontSize=10,
+            spaceAfter=6,
+            alignment=TA_JUSTIFY,
+            textColor=HexColor('#4a5568'),
+            fontName='Helvetica'
+        ))
+        
+        styles.add(ParagraphStyle(
+            name='IntelliBulletText',
+            parent=styles['Normal'],
+            fontSize=10,
+            spaceAfter=3,
+            leftIndent=20,
+            bulletIndent=10,
+            textColor=HexColor('#4a5568'),
+            fontName='Helvetica'
+        ))
+        
+        return styles
+    
+    def generate_pdf(self, content: str, title: str) -> bytes:
+        """Generate PDF from markdown content"""
+        try:
+            logger.info(f"Generating PDF report: {title}")
+            
+            # Create PDF buffer
+            buffer = BytesIO()
+            
+            # Create document
+            doc = SimpleDocTemplate(
+                buffer,
+                pagesize=A4,
+                rightMargin=72,
+                leftMargin=72,
+                topMargin=72,
+                bottomMargin=72
+            )
+            
+            # Parse markdown content
+            story = self._parse_markdown_to_story(content, title)
+            
+            # Build PDF
+            doc.build(story)
+            
+            # Get PDF bytes
+            pdf_bytes = buffer.getvalue()
+            buffer.close()
+            
+            logger.info(f"PDF generated successfully, size: {len(pdf_bytes)} bytes")
+            return pdf_bytes
+            
+        except Exception as e:
+            logger.error(f"PDF generation failed: {e}")
+            raise Exception(f"PDF generation failed: {str(e)}")
+    
+    def _parse_markdown_to_story(self, content: str, title: str) -> List:
+        """Convert markdown content to ReportLab story elements"""
+        story = []
+        
+        # Add title page
+        story.append(Paragraph(title, self.styles['IntelliReportTitle']))
+        story.append(Paragraph(f"Generated on {datetime.now().strftime('%B %d, %Y at %I:%M %p')}", self.styles['IntelliReportSubtitle']))
+        story.append(Spacer(1, 20))
+        
+        # Split content into lines
+        lines = content.split('\n')
+        current_list_items = []
+        in_table = False
+        table_data = []
+        
+        for line in lines:
+            line = line.strip()
+            
+            if not line:
+                # Add spacing for empty lines
+                if current_list_items:
+                    self._add_list_to_story(story, current_list_items)
+                    current_list_items = []
+                story.append(Spacer(1, 6))
+                continue
+            
+            # Handle headers
+            if line.startswith('#'):
+                if current_list_items:
+                    self._add_list_to_story(story, current_list_items)
+                    current_list_items = []
+                
+                level = len(line) - len(line.lstrip('#'))
+                header_text = line.lstrip('#').strip()
+                
+                if level == 1:
+                    story.append(Paragraph(self._format_text(header_text), self.styles['IntelliHeading1']))
+                elif level == 2:
+                    story.append(Paragraph(self._format_text(header_text), self.styles['IntelliHeading2']))
+                else:
+                    story.append(Paragraph(self._format_text(header_text), self.styles['IntelliHeading3']))
+                continue
+            
+            # Handle bullet points
+            if line.startswith(('- ', '* ')):
+                list_text = line[2:].strip()
+                current_list_items.append(list_text)
+                continue
+            
+            # Handle tables
+            if '|' in line and line.startswith('|') and line.endswith('|'):
+                if not in_table:
+                    in_table = True
+                    table_data = []
+                
+                # Parse table row
+                cells = [cell.strip() for cell in line.split('|')[1:-1]]
+                
+                # Skip separator rows
+                if all(cell.replace('-', '').strip() == '' for cell in cells):
+                    continue
+                
+                table_data.append(cells)
+                continue
+            else:
+                # End of table
+                if in_table:
+                    self._add_table_to_story(story, table_data)
+                    table_data = []
+                    in_table = False
+            
+            # Handle regular paragraphs
+            if current_list_items:
+                self._add_list_to_story(story, current_list_items)
+                current_list_items = []
+            
+            if line and not line.startswith('#'):
+                story.append(Paragraph(self._format_text(line), self.styles['IntelliBodyText']))
+        
+        # Handle remaining items
+        if current_list_items:
+            self._add_list_to_story(story, current_list_items)
+        
+        if table_data:
+            self._add_table_to_story(story, table_data)
+        
+        return story
+    
+    def _add_list_to_story(self, story: List, items: List[str]):
+        """Add bullet list to story"""
+        for item in items:
+            story.append(Paragraph(f"• {self._format_text(item)}", self.styles['IntelliBulletText']))
+    
+    def _add_table_to_story(self, story: List, table_data: List[List[str]]):
+        """Add table to story"""
+        if not table_data:
+            return
+        
+        # Format table data - don't apply HTML formatting to table cells
+        formatted_data = []
+        for row in table_data:
+            formatted_row = [self._clean_text_for_table(cell) for cell in row]
+            formatted_data.append(formatted_row)
+        
+        # Create table
+        table = Table(formatted_data)
+        
+        # Basic table style without dynamic additions
+        table_style = TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), HexColor('#667eea')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), white),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), HexColor('#f8fafc')),
+            ('TEXTCOLOR', (0, 1), (-1, -1), black),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
+            ('GRID', (0, 0), (-1, -1), 1, HexColor('#e2e8f0')),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [white, HexColor('#f8fafc')])
+        ])
+        
+        table.setStyle(table_style)
+        story.append(table)
+        story.append(Spacer(1, 12))
+    
+    def _clean_text_for_table(self, text: str) -> str:
+        """Clean text for table cells - remove HTML and return plain text"""
+        if not text:
+            return ""
+        
+        # Remove any existing HTML tags
+        text = re.sub(r'<[^>]+>', '', text)
+        
+        # Handle bold and italic markdown
+        text = re.sub(r'\*\*([^*]+)\*\*', r'\1', text)
+        text = re.sub(r'\*([^*]+)\*', r'\1', text)
+        
+        return text.strip()
+    
+    def _is_financial_amount(self, text: str) -> bool:
+        """Check if text is a financial amount"""
+        return bool(re.match(r'^\$[0-9]+(?:\.[0-9]+)?[KMB]?$', text.strip()))
+    
+    def _is_percentage(self, text: str) -> bool:
+        """Check if text is a percentage"""
+        return bool(re.match(r'^[0-9]+(?:\.[0-9]+)?%$', text.strip()))
+    
+    def _is_stock_symbol(self, text: str) -> bool:
+        """Check if text is a stock symbol"""
+        return bool(re.match(r'^[A-Z]{2,5}$', text.strip()))
+    
+    def _format_text(self, text: str) -> str:
+        """Format text with financial styling"""
+        if not text:
+            return ""
+        
+        # Handle bold text
+        text = re.sub(r'\*\*([^*]+)\*\*', r'<b>\1</b>', text)
+        text = re.sub(r'\*([^*]+)\*', r'<i>\1</i>', text)
+        
+        # Handle financial amounts
+        text = re.sub(
+            r'\$([0-9]+(?:\.[0-9]+)?[KMB]?)', 
+            r'<font color="#38a169" face="Courier-Bold">$\1</font>', 
+            text
+        )
+        
+        # Handle percentages
+        text = re.sub(
+            r'([0-9]+(?:\.[0-9]+)?%)', 
+            r'<font color="#3182ce" face="Courier-Bold">\1</font>', 
+            text
+        )
+        
+        # Handle stock symbols
+        text = re.sub(
+            r'\b([A-Z]{2,5})\b(?!\s*[a-z])', 
+            r'<font color="#667eea" face="Courier-Bold">\1</font>', 
+            text
+        )
+        
+        return text
+
+
 class ReportGenerationTool(Toolkit):
     """Tool for generating reports"""
     
@@ -434,4 +752,4 @@ class ReportGenerationTool(Toolkit):
             price_change_pct = metrics.get('price_change_pct', 0)
             comp_summary += f"- **{symbol}:** ${current_price} ({price_change_pct:.2f}%)\n"
         
-        return comp_summary
+        return comp_summary.strip()

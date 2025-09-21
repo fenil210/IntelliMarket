@@ -283,11 +283,6 @@ class IntelliMarketApp {
             content = data.result || data.research_report || data.comparison_report || '';
         }
         
-        // DEBUG: Log raw content before processing
-        console.log('DEBUG: Raw content from backend:', content.substring(0, 500));
-        console.log('DEBUG: Content contains $245.5?', content.includes('$245.5'));
-        console.log('DEBUG: Content contains $1?', content.includes('$1'));
-        
         // Ensure content is a string before processing
         if (typeof content !== 'string') {
             content = JSON.stringify(content, null, 2);
@@ -298,10 +293,7 @@ class IntelliMarketApp {
             content = 'No results available';
         }
         
-        // DEBUG: Process and log the markdown
         const processedMarkdown = this.formatMarkdown(content);
-        console.log('DEBUG: Processed markdown contains $245.5?', processedMarkdown.includes('$245.5'));
-        console.log('DEBUG: Processed markdown contains $1?', processedMarkdown.includes('$1'));
         
         container.innerHTML = `
             <div class="simple-results">
@@ -499,7 +491,7 @@ class IntelliMarketApp {
         // Handle links [text](url)
         text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
         
-        // Handle financial symbols like $XXX - FIXED: Use proper replacement syntax
+        // Handle financial symbols like $XXX
         text = text.replace(/\$([0-9]+(?:\.[0-9]+)?[KMB]?)/g, function(match, amount) {
             return `<span class="financial-amount">${amount}</span>`;
         });
@@ -651,38 +643,41 @@ class IntelliMarketApp {
         this.currentResults = null;
     }
 
-    downloadResults() {
-        if (!this.currentResults) return;
-
-        const { data, title } = this.currentResults;
-        let content = '';
-
-        if (data.analysis_type === 'comprehensive') {
-            content = data.result.final_report;
-        } else if (data.analysis_type === 'market_research') {
-            if (data.result && typeof data.result === 'object') {
-                content = data.result.research_report || JSON.stringify(data.result, null, 2);
-            } else {
-                content = data.result || '';
-            }
-        } else {
-            content = data.result || data.research_report || data.comparison_report;
+    async downloadResults() {
+        if (!this.currentResults) {
+            this.showError('No results available for download');
+            return;
         }
 
-        // Ensure content is a string
-        if (typeof content !== 'string') {
-            content = JSON.stringify(content, null, 2);
-        }
+        try {
+            const { data, title } = this.currentResults;
+            
+            // Show download progress
+            const downloadBtn = document.getElementById('download-btn');
+            const originalText = downloadBtn.innerHTML;
+            downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating PDF...';
+            downloadBtn.disabled = true;
 
-        const blob = new Blob([content], { type: 'text/markdown' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${title.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().slice(0, 10)}.md`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+            const result = await this.api.downloadPDF(data, title);
+            
+            // Reset button
+            downloadBtn.innerHTML = originalText;
+            downloadBtn.disabled = false;
+            
+            // Show success message briefly
+            downloadBtn.innerHTML = '<i class="fas fa-check"></i> Downloaded';
+            setTimeout(() => {
+                downloadBtn.innerHTML = originalText;
+            }, 2000);
+
+        } catch (error) {
+            // Reset button on error
+            const downloadBtn = document.getElementById('download-btn');
+            downloadBtn.innerHTML = '<i class="fas fa-download"></i> Download Report';
+            downloadBtn.disabled = false;
+            
+            this.showError(`Download failed: ${this.api.formatError(error)}`);
+        }
     }
 
     addToRecentAnalyses(query, type, analysisType = null) {

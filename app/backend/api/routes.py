@@ -1,12 +1,14 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, send_file
 from werkzeug.exceptions import BadRequest
 import logging
 import traceback
 from datetime import datetime
 import threading
 import uuid
+from io import BytesIO
 
 from workflows import WorkflowFactory
+from tools import PDFGenerationTool
 
 api_bp = Blueprint('api', __name__)
 logger = logging.getLogger(__name__)
@@ -186,6 +188,109 @@ def custom_query():
         logger.error(traceback.format_exc())
         return jsonify({"error": "Custom query failed", "details": str(e)}), 500
 
+@api_bp.route('/download/pdf', methods=['POST'])
+def download_pdf():
+    try:
+        data = request.get_json()
+        
+        if not data or 'content' not in data or 'title' not in data:
+            raise BadRequest("Content and title are required")
+        
+        content = data['content']
+        title = data['title']
+        
+        if not content or not title:
+            raise BadRequest("Content and title cannot be empty")
+        
+        logger.info(f"Generating PDF for: {title}")
+        
+        # Extract content based on type
+        markdown_content = ""
+        
+        if isinstance(content, dict):
+            if content.get('analysis_type') == 'comprehensive':
+                result = content.get('result', {})
+                # Combine all comprehensive analysis sections
+                sections = []
+                if result.get('final_report'):
+                    sections.append("# Final Report\n" + result.get('final_report'))
+                if result.get('financial_analysis'):
+                    sections.append("# Financial Analysis\n" + result.get('financial_analysis'))
+                if result.get('technical_analysis'):
+                    sections.append("# Technical Analysis\n" + result.get('technical_analysis'))
+                if result.get('news_analysis'):
+                    sections.append("# News Analysis\n" + result.get('news_analysis'))
+                if result.get('competitive_analysis'):
+                    sections.append("# Competitive Analysis\n" + result.get('competitive_analysis'))
+                
+                markdown_content = "\n\n---\n\n".join(sections)
+                
+            elif content.get('analysis_type') == 'market_research':
+                result = content.get('result', {})
+                if isinstance(result, dict):
+                    markdown_content = result.get('research_report', '')
+                else:
+                    markdown_content = str(result)
+                    
+            elif content.get('analysis_type') == 'comparison':
+                result = content.get('result', {})
+                # Combine all comparison sections
+                sections = []
+                
+                if result.get('comparison_report'):
+                    sections.append("# Comparison Report\n" + result.get('comparison_report'))
+                    
+                if result.get('financial_comparison'):
+                    sections.append("# Financial Comparison\n" + result.get('financial_comparison'))
+                    
+                if result.get('technical_comparison'):
+                    sections.append("# Technical Comparison\n" + result.get('technical_comparison'))
+                    
+                if result.get('competitive_analyses'):
+                    sections.append("# Competitive Analysis")
+                    competitive_analyses = result.get('competitive_analyses', {})
+                    for symbol, analysis in competitive_analyses.items():
+                        sections.append(f"## {symbol} Competitive Analysis\n{analysis}")
+                
+                markdown_content = "\n\n---\n\n".join(sections)
+                
+            else:
+                markdown_content = content.get('result', '')
+        else:
+            markdown_content = str(content)
+        
+        if not markdown_content:
+            raise BadRequest("No content available for PDF generation")
+        
+        # Generate PDF
+        pdf_tool = PDFGenerationTool()
+        pdf_bytes = pdf_tool.generate_pdf(markdown_content, title)
+        
+        # Create BytesIO object for sending file
+        pdf_buffer = BytesIO(pdf_bytes)
+        pdf_buffer.seek(0)
+        
+        # Generate filename
+        safe_title = "".join(c for c in title if c.isalnum() or c in (' ', '-', '_')).rstrip()
+        filename = f"{safe_title}_{datetime.now().strftime('%Y%m%d')}.pdf"
+        
+        logger.info(f"PDF generated successfully: {filename}")
+        
+        return send_file(
+            pdf_buffer,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/pdf'
+        )
+        
+    except BadRequest as e:
+        logger.warning(f"Bad request: {e}")
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        logger.error(f"PDF generation failed: {e}")
+        logger.error(traceback.format_exc())
+        return jsonify({"error": "PDF generation failed", "details": str(e)}), 500
+
 @api_bp.route('/analyze/async/stock', methods=['POST'])
 def analyze_stock_async():
     try:
@@ -324,7 +429,8 @@ def system_info():
             "Stock comparison",
             "Market research", 
             "Custom queries",
-            "Async processing"
+            "Async processing",
+            "PDF report generation"
         ],
         "timestamp": datetime.now().isoformat()
     })
