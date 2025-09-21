@@ -122,10 +122,18 @@ def market_research():
         workflow = WorkflowFactory.create_research_workflow()
         result = workflow.research_market_topic(topic)
         
+        # Ensure we're returning the right structure
+        if isinstance(result, dict) and 'research_report' in result:
+            final_result = result['research_report']
+        elif isinstance(result, dict):
+            final_result = result
+        else:
+            final_result = str(result)
+        
         response = {
             "topic": topic,
             "analysis_type": "market_research",
-            "result": result,
+            "result": final_result,
             "timestamp": datetime.now().isoformat(),
             "status": "completed"
         }

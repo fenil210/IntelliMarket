@@ -24,6 +24,14 @@ class InvestmentAnalysisWorkflow:
         # Step 1: Financial Analysis
         logger.info("Performing financial analysis")
         financial_analysis = self.agents["financial"].analyze_stock(symbol)
+        
+        # Check for $1 in financial analysis and replace if needed
+        if isinstance(financial_analysis, str) and "$1" in financial_analysis:
+            debug_data = self.agents["financial"].debug_tool_data(symbol)
+            current_price = debug_data.get('current_price')
+            if current_price:
+                financial_analysis = financial_analysis.replace("$1", f"${current_price}")
+        
         self.results["financial"] = financial_analysis
         
         # Step 2: Technical Analysis  
@@ -53,6 +61,7 @@ class InvestmentAnalysisWorkflow:
                 "timestamp": datetime.now().isoformat()
             }
         )
+        
         self.results["final_report"] = final_report
         
         logger.info("Analysis complete")
@@ -71,9 +80,17 @@ class InvestmentAnalysisWorkflow:
         """Quick analysis for faster results"""
         logger.info(f"Quick analysis for {symbol}")
         
+        # Get tool data before analysis
+        debug_data = self.agents["financial"].debug_tool_data(symbol)
+        current_price = debug_data.get('current_price')
+        
         # Just financial and technical analysis
         financial = self.agents["financial"].analyze_stock(symbol)
         technical = self.agents["technical"].technical_analysis(symbol)
+        
+        # Check for $1 in analysis results and replace if needed
+        if isinstance(financial, str) and "$1" in financial and current_price:
+            financial = financial.replace("$1", f"${current_price}")
         
         # Generate quick report
         report = self.agents["report"].generate_investment_report(
@@ -85,6 +102,10 @@ class InvestmentAnalysisWorkflow:
                 "timestamp": datetime.now().isoformat()
             }
         )
+        
+        # Final safety check: replace any remaining $1 with real price
+        if isinstance(report, str) and "$1" in report and current_price:
+            report = report.replace("$1", f"${current_price}")
         
         logger.info("Quick analysis complete")
         return report
@@ -175,11 +196,18 @@ class MarketResearchWorkflow:
             "analysis_type": "market_research",
             "timestamp": datetime.now().isoformat()
         })
+        
         results["research_report"] = research_report
         
         logger.info("Market research complete")
         
-        return results
+        # Return the research report directly as a string for frontend compatibility
+        return {
+            "web_research": web_research,
+            "research_report": research_report,
+            "financial_context": results.get("financial_context", {}),
+            "timestamp": datetime.now().isoformat()
+        }
     
     def _extract_symbols(self, text: str) -> List[str]:
         """Extract potential stock symbols from text"""
