@@ -14,33 +14,6 @@ logger = logging.getLogger(__name__)
 # Store for tracking analysis status
 analysis_status = {}
 
-@api_bp.route('/debug/tool/<symbol>', methods=['GET'])
-def debug_tool_data(symbol):
-    """Debug endpoint to test tool data directly"""
-    try:
-        from tools import FinancialDataTool
-        tool = FinancialDataTool()
-        
-        logger.info(f"DEBUG: Testing tool for {symbol}")
-        data = tool.get_stock_data(symbol)
-        
-        logger.info(f"DEBUG: Tool returned for {symbol}: {data}")
-        
-        return jsonify({
-            "symbol": symbol,
-            "tool_data": data,
-            "debug_info": {
-                "current_price": data.get('current_price'),
-                "market_cap": data.get('market_cap'),
-                "market_cap_formatted": data.get('market_cap_formatted'),
-                "has_error": "error" in data
-            }
-        })
-        
-    except Exception as e:
-        logger.error(f"Debug tool test failed for {symbol}: {e}")
-        return jsonify({"error": str(e)}), 500
-
 @api_bp.route('/analyze/stock', methods=['POST'])
 def analyze_stock():
     try:
@@ -57,20 +30,9 @@ def analyze_stock():
         
         logger.info(f"Starting {analysis_type} analysis for {symbol}")
         
-        # Debug: Test tool data before analysis
-        from tools import FinancialDataTool
-        debug_tool = FinancialDataTool()
-        debug_data = debug_tool.get_stock_data(symbol)
-        logger.info(f"DEBUG: Direct tool test for {symbol} returned current_price: {debug_data.get('current_price')}")
-        
         if analysis_type == 'quick':
             workflow = WorkflowFactory.create_investment_workflow()
             result = workflow.quick_analysis(symbol)
-            
-            # Debug the result
-            logger.info(f"DEBUG: Quick analysis result type: {type(result)}")
-            if isinstance(result, str) and "$1" in result:
-                logger.warning(f"WARNING: $1 detected in quick analysis result for {symbol}")
             
             response = {
                 "symbol": symbol,
@@ -82,9 +44,6 @@ def analyze_stock():
         else:
             workflow = WorkflowFactory.create_investment_workflow()
             result = workflow.analyze_stock(symbol)
-            
-            # Debug the result
-            logger.info(f"DEBUG: Comprehensive analysis result keys: {list(result.keys()) if isinstance(result, dict) else 'Not a dict'}")
             
             response = {
                 "symbol": symbol,
@@ -123,18 +82,8 @@ def compare_stocks():
         
         logger.info(f"Starting comparison analysis for {symbols}")
         
-        # Debug: Test tool data for each symbol
-        from tools import FinancialDataTool
-        debug_tool = FinancialDataTool()
-        for symbol in symbols:
-            debug_data = debug_tool.get_stock_data(symbol)
-            logger.info(f"DEBUG: Tool test for {symbol} returned current_price: {debug_data.get('current_price')}")
-        
         workflow = WorkflowFactory.create_comparison_workflow()
         result = workflow.compare_stocks(symbols)
-        
-        # Debug the result
-        logger.info(f"DEBUG: Comparison result type: {type(result)}")
         
         response = {
             "symbols": symbols,
@@ -173,10 +122,6 @@ def market_research():
         workflow = WorkflowFactory.create_research_workflow()
         result = workflow.research_market_topic(topic)
         
-        # Debug the result structure
-        logger.info(f"DEBUG: Market research result type: {type(result)}")
-        logger.info(f"DEBUG: Market research result keys: {list(result.keys()) if isinstance(result, dict) else 'Not a dict'}")
-        
         # Ensure we're returning the right structure
         if isinstance(result, dict) and 'research_report' in result:
             final_result = result['research_report']
@@ -184,8 +129,6 @@ def market_research():
             final_result = result
         else:
             final_result = str(result)
-        
-        logger.info(f"DEBUG: Final result type for frontend: {type(final_result)}")
         
         response = {
             "topic": topic,
@@ -223,9 +166,6 @@ def custom_query():
         
         workflow = WorkflowFactory.create_custom_workflow()
         result = workflow.process_query(query)
-        
-        # Debug the result
-        logger.info(f"DEBUG: Custom query result type: {type(result)}")
         
         response = {
             "query": query,

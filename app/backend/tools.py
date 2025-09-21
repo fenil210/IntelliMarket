@@ -60,10 +60,6 @@ class FinancialDataTool(Toolkit):
             price_change = hist['Close'].iloc[-1] - hist['Close'].iloc[-2] if len(hist) > 1 else 0
             price_change_pct = (price_change / hist['Close'].iloc[-2]) * 100 if len(hist) > 1 else 0
             
-            # Debug logging for price data
-            logger.info(f"Raw current_price for {symbol}: {current_price}")
-            logger.info(f"Price from hist Close: {hist['Close'].iloc[-1] if len(hist) > 0 else 'No data'}")
-            
             # Format market cap properly
             market_cap = info.get("marketCap") or info.get("marketCapitalization")
             market_cap_formatted = self._format_large_number(market_cap) if market_cap else "N/A"
@@ -110,15 +106,6 @@ class FinancialDataTool(Toolkit):
                 "enterprise_value": enterprise_value,
                 "enterprise_value_formatted": enterprise_value_formatted
             }
-            
-            # Critical debugging
-            logger.info(f"FINAL RESULT for {symbol}: current_price = {result['current_price']}, market_cap = {result['market_cap_formatted']}")
-            
-            # Validation check
-            if result['current_price'] is None:
-                logger.error(f"CRITICAL: No current price found for {symbol}")
-                logger.error(f"Historical data length: {len(hist)}")
-                logger.error(f"Info keys: {list(info.keys())[:10]}")
             
             return result
             

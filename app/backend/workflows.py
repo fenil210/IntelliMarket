@@ -25,12 +25,12 @@ class InvestmentAnalysisWorkflow:
         logger.info("Performing financial analysis")
         financial_analysis = self.agents["financial"].analyze_stock(symbol)
         
-        # Debug: Check for $1 in financial analysis
+        # Check for $1 in financial analysis and replace if needed
         if isinstance(financial_analysis, str) and "$1" in financial_analysis:
-            logger.warning(f"WARNING: $1 detected in financial analysis for {symbol}")
-            # Try to get debug data
             debug_data = self.agents["financial"].debug_tool_data(symbol)
-            logger.warning(f"Debug tool data: {debug_data}")
+            current_price = debug_data.get('current_price')
+            if current_price:
+                financial_analysis = financial_analysis.replace("$1", f"${current_price}")
         
         self.results["financial"] = financial_analysis
         
@@ -62,10 +62,6 @@ class InvestmentAnalysisWorkflow:
             }
         )
         
-        # Debug: Check for $1 in final report
-        if isinstance(final_report, str) and "$1" in final_report:
-            logger.warning(f"WARNING: $1 detected in final report for {symbol}")
-        
         self.results["final_report"] = final_report
         
         logger.info("Analysis complete")
@@ -84,22 +80,17 @@ class InvestmentAnalysisWorkflow:
         """Quick analysis for faster results"""
         logger.info(f"Quick analysis for {symbol}")
         
-        # Debug: Test tool data before analysis
+        # Get tool data before analysis
         debug_data = self.agents["financial"].debug_tool_data(symbol)
         current_price = debug_data.get('current_price')
-        logger.info(f"DEBUG: Tool data before quick analysis: current_price = {current_price}")
         
         # Just financial and technical analysis
         financial = self.agents["financial"].analyze_stock(symbol)
         technical = self.agents["technical"].technical_analysis(symbol)
         
-        # Debug: Check for $1 in analysis results
-        if isinstance(financial, str) and "$1" in financial:
-            logger.warning(f"WARNING: $1 detected in quick financial analysis for {symbol}")
-            # Force replace with real price if available
-            if current_price:
-                logger.warning(f"Forcing replacement of $1 with ${current_price}")
-                financial = financial.replace("$1", f"${current_price}")
+        # Check for $1 in analysis results and replace if needed
+        if isinstance(financial, str) and "$1" in financial and current_price:
+            financial = financial.replace("$1", f"${current_price}")
         
         # Generate quick report
         report = self.agents["report"].generate_investment_report(
@@ -114,12 +105,7 @@ class InvestmentAnalysisWorkflow:
         
         # Final safety check: replace any remaining $1 with real price
         if isinstance(report, str) and "$1" in report and current_price:
-            logger.warning(f"FINAL CLEANUP: Replacing remaining $1 with ${current_price} in report for {symbol}")
             report = report.replace("$1", f"${current_price}")
-        
-        # Debug: Check final report
-        if isinstance(report, str) and "$1" in report:
-            logger.error(f"CRITICAL: $1 still detected in final quick report for {symbol}")
         
         logger.info("Quick analysis complete")
         return report
@@ -139,19 +125,9 @@ class ComparisonWorkflow:
         
         results = {}
         
-        # Debug: Test tool data for all symbols first
-        for symbol in symbols:
-            debug_data = self.agents["financial"].debug_tool_data(symbol)
-            logger.info(f"DEBUG: Tool data for {symbol} before comparison: current_price = {debug_data.get('current_price')}")
-        
         # Financial Comparison
         logger.info("Financial comparison")
         financial_comparison = self.agents["financial"].compare_stocks(symbols)
-        
-        # Debug: Check for $1 in financial comparison
-        if isinstance(financial_comparison, str) and "$1" in financial_comparison:
-            logger.warning(f"WARNING: $1 detected in financial comparison for {symbols}")
-        
         results["financial_comparison"] = financial_comparison
         
         # Technical Comparison
@@ -200,11 +176,6 @@ class MarketResearchWorkflow:
         # Web research for the topic
         logger.info("Web research")
         web_research = self.agents["research"].analyze_market_sentiment(topic)
-        
-        # Debug: Check the type and content of web research
-        logger.info(f"DEBUG: Web research result type: {type(web_research)}")
-        logger.info(f"DEBUG: Web research preview: {str(web_research)[:200]}...")
-        
         results["web_research"] = web_research
         
         # If topic contains stock symbols, analyze them
@@ -225,10 +196,6 @@ class MarketResearchWorkflow:
             "analysis_type": "market_research",
             "timestamp": datetime.now().isoformat()
         })
-        
-        # Debug: Check the research report
-        logger.info(f"DEBUG: Research report type: {type(research_report)}")
-        logger.info(f"DEBUG: Research report preview: {str(research_report)[:200]}...")
         
         results["research_report"] = research_report
         
@@ -276,16 +243,7 @@ class CustomQueryWorkflow:
             symbols = self._extract_symbols_from_query(query)
             if symbols:
                 for symbol in symbols[:2]:
-                    # Debug tool data first
-                    debug_data = self.agents["financial"].debug_tool_data(symbol)
-                    logger.info(f"DEBUG: Tool data for {symbol} in custom query: current_price = {debug_data.get('current_price')}")
-                    
                     result = self.agents["financial"].analyze_stock(symbol)
-                    
-                    # Check for $1 in result
-                    if isinstance(result, str) and "$1" in result:
-                        logger.warning(f"WARNING: $1 detected in custom query financial analysis for {symbol}")
-                    
                     results.append(f"Financial Analysis for {symbol}:\n{result}")
         
         # Technical analysis needed?
@@ -327,13 +285,6 @@ class CustomQueryWorkflow:
             "analysis_type": "custom_query",
             "timestamp": datetime.now().isoformat()
         })
-        
-        # Debug: Check final response
-        logger.info(f"DEBUG: Custom query final response type: {type(final_response)}")
-        
-        # Check for $1 in final response
-        if isinstance(final_response, str) and "$1" in final_response:
-            logger.warning(f"WARNING: $1 detected in custom query final response")
         
         logger.info("Query processing complete")
         

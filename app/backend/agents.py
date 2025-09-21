@@ -79,13 +79,11 @@ class FinancialAnalysisAgent:
         """Analyze a single stock comprehensively"""
         logger.info(f"Financial agent analyzing stock: {symbol}")
         
-        # Debug: Test tool data first
+        # Get tool data first
         debug_data = self.debug_tool_data(symbol)
         current_price = debug_data.get('current_price')
         market_cap = debug_data.get('market_cap_formatted', 'N/A')
         pe_ratio = debug_data.get('pe_ratio', 'N/A')
-        
-        logger.info(f"Tool returned current_price: {current_price}")
         
         # Extract real data for prompt
         prompt = f"""
@@ -119,13 +117,7 @@ class FinancialAnalysisAgent:
         
         # Force replacement of any remaining $1 with real data
         if "$1" in result and current_price:
-            logger.warning(f"Forcing replacement of $1 with real price ${current_price} for {symbol}")
             result = result.replace("$1", f"${current_price}")
-        
-        # Additional verification logging
-        if "$1" in result:
-            logger.error(f"CRITICAL: Still found $1 in result for {symbol} after replacement")
-            logger.error(f"Tool data was: {debug_data}")
         
         return result
     
@@ -134,7 +126,7 @@ class FinancialAnalysisAgent:
         symbols_str = ", ".join(symbols)
         logger.info(f"Financial agent comparing stocks: {symbols_str}")
         
-        # Debug tool data for all symbols and extract real prices
+        # Get tool data for all symbols and extract real prices
         stock_data = {}
         for symbol in symbols:
             debug_data = self.debug_tool_data(symbol)
@@ -146,7 +138,6 @@ class FinancialAnalysisAgent:
                 'market_cap': market_cap,
                 'pe_ratio': pe_ratio
             }
-            logger.info(f"{symbol} tool data current_price: {current_price}")
         
         # Build real data injection for prompt
         real_data_text = "REAL STOCK DATA TO USE:\n"
@@ -179,12 +170,7 @@ class FinancialAnalysisAgent:
         # Force replacement of any $1 with real prices
         for symbol, data in stock_data.items():
             if data['price'] and "$1" in result:
-                logger.warning(f"Forcing replacement of $1 with real price ${data['price']} for {symbol}")
-                result = result.replace("$1", f"${data['price']}", 1)  # Replace one at a time
-        
-        # Additional verification logging
-        if "$1" in result:
-            logger.warning(f"WARNING: Placeholder $1 detected in comparison result for {symbols_str}")
+                result = result.replace("$1", f"${data['price']}", 1)
         
         return result
 
@@ -507,9 +493,6 @@ class ReportGenerationAgent:
         """Generate comprehensive investment report"""
         logger.info(f"Report agent generating investment report for: {symbol}")
         
-        # Log the analysis data structure for debugging
-        logger.info(f"Analysis data keys: {list(analysis_data.keys())}")
-        
         # Extract real price data from financial analysis
         financial_analysis = analysis_data.get('financial_analysis', '')
         real_price = None
@@ -520,12 +503,10 @@ class ReportGenerationAgent:
         price_match = re.search(r'Current Stock Price[:\s]*\$?([\d,]+\.?\d*)', financial_analysis, re.IGNORECASE)
         if price_match:
             real_price = price_match.group(1)
-            logger.info(f"Extracted real price from analysis: ${real_price}")
         
         market_cap_match = re.search(r'Market Cap[italization]*[:\s]*\$?([\d,]+\.?\d*[KMB]?)', financial_analysis, re.IGNORECASE)
         if market_cap_match:
             real_market_cap = market_cap_match.group(1)
-            logger.info(f"Extracted real market cap from analysis: ${real_market_cap}")
         
         # If no price found, try to get it directly from tools
         if not real_price:
@@ -536,7 +517,6 @@ class ReportGenerationAgent:
                 if tool_data.get('current_price'):
                     real_price = str(tool_data['current_price'])
                     real_market_cap = tool_data.get('market_cap_formatted', 'N/A')
-                    logger.info(f"Got real price from tool fallback: ${real_price}")
             except Exception as e:
                 logger.error(f"Failed to get fallback price data: {e}")
         
@@ -545,8 +525,7 @@ class ReportGenerationAgent:
         if real_price:
             try:
                 current_price_float = float(real_price.replace(',', ''))
-                # Simple 10-15% upside target
-                target_float = current_price_float * 1.125  # 12.5% upside
+                target_float = current_price_float * 1.125
                 price_target = f"{target_float:.2f}"
             except:
                 price_target = "N/A"
@@ -584,13 +563,7 @@ class ReportGenerationAgent:
         
         # Aggressive post-processing to replace any remaining $1 with real data
         if "$1" in result and real_price:
-            logger.warning(f"Forcing replacement of $1 with real price ${real_price} in report")
             result = result.replace("$1", f"${real_price}")
-        
-        # Final verification
-        if "$1" in result:
-            logger.error(f"CRITICAL: $1 still found in final report for {symbol}")
-            logger.error(f"Real price was: {real_price}, Market cap: {real_market_cap}")
         
         return result
     
