@@ -18,6 +18,27 @@ logger = logging.getLogger(__name__)
 class FinancialDataTool(Toolkit):
     """Tool for fetching financial data using YFinance"""
     
+    def _format_large_number(self, number):
+        """Format large numbers into readable format (e.g., 1.5T, 500.2B, 10.3M)"""
+        if not number or number == 0:
+            return "N/A"
+        
+        try:
+            number = float(number)
+            
+            if number >= 1e12:
+                return f"${number/1e12:.1f}T"
+            elif number >= 1e9:
+                return f"${number/1e9:.1f}B"
+            elif number >= 1e6:
+                return f"${number/1e6:.1f}M"
+            elif number >= 1e3:
+                return f"${number/1e3:.1f}K"
+            else:
+                return f"${number:.2f}"
+        except (ValueError, TypeError):
+            return "N/A"
+    
     def get_stock_data(self, symbol: str, period: str = "1y") -> Dict[str, Any]:
         """Get stock price data and basic info"""
         try:
@@ -30,30 +51,62 @@ class FinancialDataTool(Toolkit):
             # Get stock info
             info = ticker.info
             
+            if hist.empty:
+                return {"error": f"No historical data available for {symbol}"}
+            
             # Calculate basic metrics
             current_price = hist['Close'][-1] if len(hist) > 0 else None
             price_change = hist['Close'][-1] - hist['Close'][-2] if len(hist) > 1 else 0
             price_change_pct = (price_change / hist['Close'][-2]) * 100 if len(hist) > 1 else 0
+            
+            # Format market cap properly
+            market_cap = info.get("marketCap") or info.get("marketCapitalization")
+            market_cap_formatted = self._format_large_number(market_cap) if market_cap else "N/A"
+            
+            # Format other financial metrics
+            pe_ratio = info.get("trailingPE") or info.get("forwardPE")
+            eps = info.get("trailingEps") or info.get("forwardEps")
+            
+            # Format revenue
+            revenue = info.get("totalRevenue") or info.get("revenue")
+            revenue_formatted = self._format_large_number(revenue) if revenue else "N/A"
+            
+            # Format enterprise value
+            enterprise_value = info.get("enterpriseValue")
+            enterprise_value_formatted = self._format_large_number(enterprise_value) if enterprise_value else "N/A"
             
             result = {
                 "symbol": symbol,
                 "current_price": round(current_price, 2) if current_price else None,
                 "price_change": round(price_change, 2),
                 "price_change_pct": round(price_change_pct, 2),
-                "market_cap": info.get("marketCap"),
-                "pe_ratio": info.get("trailingPE"),
-                "eps": info.get("trailingEps"),
-                "dividend_yield": info.get("dividendYield"),
-                "52_week_high": info.get("fiftyTwoWeekHigh"),
-                "52_week_low": info.get("fiftyTwoWeekLow"),
-                "volume": hist['Volume'][-1] if len(hist) > 0 else None,
-                "avg_volume": info.get("averageVolume"),
-                "sector": info.get("sector"),
-                "industry": info.get("industry"),
-                "business_summary": info.get("longBusinessSummary", "")[:500]
+                "market_cap": market_cap,
+                "market_cap_formatted": market_cap_formatted,
+                "pe_ratio": round(pe_ratio, 2) if pe_ratio else None,
+                "eps": round(eps, 2) if eps else None,
+                "dividend_yield": round(info.get("dividendYield") * 100, 2) if info.get("dividendYield") else None,
+                "52_week_high": round(info.get("fiftyTwoWeekHigh"), 2) if info.get("fiftyTwoWeekHigh") else None,
+                "52_week_low": round(info.get("fiftyTwoWeekLow"), 2) if info.get("fiftyTwoWeekLow") else None,
+                "volume": int(hist['Volume'][-1]) if len(hist) > 0 else None,
+                "avg_volume": int(info.get("averageVolume")) if info.get("averageVolume") else None,
+                "sector": info.get("sector") or "N/A",
+                "industry": info.get("industry") or "N/A",
+                "business_summary": info.get("longBusinessSummary", "")[:500],
+                # Additional financial metrics with proper formatting
+                "revenue": revenue,
+                "revenue_formatted": revenue_formatted,
+                "gross_margin": round(info.get("grossMargins") * 100, 2) if info.get("grossMargins") else None,
+                "operating_margin": round(info.get("operatingMargins") * 100, 2) if info.get("operatingMargins") else None,
+                "profit_margin": round(info.get("profitMargins") * 100, 2) if info.get("profitMargins") else None,
+                "roe": round(info.get("returnOnEquity") * 100, 2) if info.get("returnOnEquity") else None,
+                "debt_to_equity": round(info.get("debtToEquity"), 2) if info.get("debtToEquity") else None,
+                "current_ratio": round(info.get("currentRatio"), 2) if info.get("currentRatio") else None,
+                "book_value": round(info.get("bookValue"), 2) if info.get("bookValue") else None,
+                "enterprise_value": enterprise_value,
+                "enterprise_value_formatted": enterprise_value_formatted
             }
             
-            logger.info(f"Successfully fetched data for {symbol}")
+            logger.info(f"Successfully processed data for {symbol}: Current Price = ${current_price:.2f}, Market Cap = {market_cap_formatted}")
             return result
             
         except Exception as e:
@@ -188,11 +241,15 @@ class CompetitiveAnalysisTool(Toolkit):
             if "error" not in data:
                 comparison_data[symbol] = {
                     "current_price": data.get("current_price"),
-                    "market_cap": data.get("market_cap"),
+                    "market_cap": data.get("market_cap_formatted"),
                     "pe_ratio": data.get("pe_ratio"),
                     "price_change_pct": data.get("price_change_pct"),
                     "sector": data.get("sector"),
-                    "industry": data.get("industry")
+                    "industry": data.get("industry"),
+                    "revenue": data.get("revenue_formatted"),
+                    "gross_margin": data.get("gross_margin"),
+                    "operating_margin": data.get("operating_margin"),
+                    "roe": data.get("roe")
                 }
         
         return {
@@ -323,22 +380,33 @@ class ReportGenerationTool(Toolkit):
         if not data or "error" in data:
             return "Financial data unavailable"
         
+        current_price = data.get('current_price', 'N/A')
+        price_change_pct = data.get('price_change_pct', 0)
+        market_cap = data.get('market_cap_formatted', 'N/A')
+        pe_ratio = data.get('pe_ratio', 'N/A')
+        sector = data.get('sector', 'N/A')
+        
         return f"""
-- **Current Price:** ${data.get('current_price', 'N/A')}
-- **Price Change:** {data.get('price_change_pct', 0):.2f}%
-- **Market Cap:** ${data.get('market_cap', 'N/A'):,} (if available)
-- **P/E Ratio:** {data.get('pe_ratio', 'N/A')}
-- **Sector:** {data.get('sector', 'N/A')}
+- **Current Price:** ${current_price}
+- **Price Change:** {price_change_pct:.2f}%
+- **Market Cap:** {market_cap}
+- **P/E Ratio:** {pe_ratio}
+- **Sector:** {sector}
 """
     
     def _format_technical_data(self, data: Dict) -> str:
         if not data or "error" in data:
             return "Technical data unavailable"
         
+        rsi = data.get('rsi', 'N/A')
+        rsi_condition = data.get('trend_analysis', {}).get('rsi_condition', 'N/A')
+        above_sma_20 = data.get('trend_analysis', {}).get('above_sma_20')
+        above_sma_50 = data.get('trend_analysis', {}).get('above_sma_50')
+        
         return f"""
-- **RSI:** {data.get('rsi', 'N/A')} ({data.get('trend_analysis', {}).get('rsi_condition', 'N/A')})
-- **Price vs SMA20:** {'Above' if data.get('trend_analysis', {}).get('above_sma_20') else 'Below'}
-- **Price vs SMA50:** {'Above' if data.get('trend_analysis', {}).get('above_sma_50') else 'Below'}
+- **RSI:** {rsi} ({rsi_condition})
+- **Price vs SMA20:** {'Above' if above_sma_20 else 'Below'}
+- **Price vs SMA50:** {'Above' if above_sma_50 else 'Below'}
 """
     
     def _format_news_data(self, data: List) -> str:
@@ -362,6 +430,8 @@ class ReportGenerationTool(Toolkit):
         
         comp_summary = ""
         for symbol, metrics in comparison.items():
-            comp_summary += f"- **{symbol}:** ${metrics.get('current_price', 'N/A')} ({metrics.get('price_change_pct', 0):.2f}%)\n"
+            current_price = metrics.get('current_price', 'N/A')
+            price_change_pct = metrics.get('price_change_pct', 0)
+            comp_summary += f"- **{symbol}:** ${current_price} ({price_change_pct:.2f}%)\n"
         
         return comp_summary

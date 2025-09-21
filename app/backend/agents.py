@@ -19,6 +19,7 @@ class FinancialAnalysisAgent:
     
     def __init__(self):
         logger.info("Initializing Financial Analysis Agent")
+        self.financial_tool = FinancialDataTool()
         self.agent = Agent(
             name="Financial Analysis Agent",
             role="Senior Financial Analyst specializing in equity research and quantitative analysis",
@@ -26,6 +27,13 @@ class FinancialAnalysisAgent:
             tools=[FinancialDataTool()],
             instructions=[
                 "ROLE: You are a CFA-level senior financial analyst with 15+ years of experience in equity research and investment analysis.",
+                
+                "CRITICAL DATA USAGE RULES:",
+                "- You MUST call your tools to get real financial data",
+                "- You MUST use the exact numbers returned by your tools",
+                "- NEVER use placeholder values like $1, $X, $XXX, or any generic amounts",
+                "- Every financial figure in your analysis must come from actual tool data",
+                "- If a tool returns 'N/A' or None, say 'Not Available' instead of using $1",
                 
                 "ANALYSIS FRAMEWORK: Follow a structured approach:",
                 "1. QUANTITATIVE ANALYSIS: Calculate and interpret key financial ratios (P/E, PEG, ROE, ROA, Debt-to-Equity, Current Ratio, Quick Ratio)",
@@ -37,8 +45,8 @@ class FinancialAnalysisAgent:
                 "TECHNICAL INTEGRATION: Interpret basic technical indicators (RSI, moving averages, MACD) from a fundamental perspective",
                 
                 "OUTPUT STANDARDS:",
-                "- Always lead with clear investment thesis (BUY/HOLD/SELL with price target)",
-                "- Provide specific numerical data and cite exact metrics",
+                "- Always lead with clear investment thesis (BUY/HOLD/SELL with specific price target)",
+                "- Provide specific numerical data from your tools - never placeholder values",
                 "- Compare against industry averages and peer companies",
                 "- Highlight 2-3 key investment drivers and 2-3 primary risks",
                 "- Use professional financial terminology appropriately",
@@ -49,19 +57,40 @@ class FinancialAnalysisAgent:
             markdown=True
         )
     
+    def debug_tool_data(self, symbol: str) -> Dict[str, Any]:
+        """Debug method to see raw tool data"""
+        logger.info(f"DEBUG: Testing tool data for {symbol}")
+        data = self.financial_tool.get_stock_data(symbol)
+        logger.info(f"DEBUG: Raw tool data: {data}")
+        return data
+    
     def analyze_stock(self, symbol: str) -> str:
         """Analyze a single stock comprehensively"""
         logger.info(f"Financial agent analyzing stock: {symbol}")
         prompt = f"""
-        Perform a comprehensive financial analysis of {symbol}. Include:
+        You are a senior financial analyst. Perform a comprehensive financial analysis of {symbol}.
+
+        CRITICAL: You MUST use the actual data from your tools. Do NOT use placeholder values like $1, $X, or $XXX.
+
+        Steps:
+        1. First, call get_stock_data() to get current financial metrics
+        2. Then call calculate_technical_indicators() for technical analysis
+        3. Use the EXACT numbers returned by these tools in your analysis
+
+        Your analysis must include:
+        1. Current stock price (use exact price from tool data)
+        2. Market capitalization (use exact market cap from tool data) 
+        3. P/E ratio, EPS, and other valuation metrics (use exact values from tool data)
+        4. Technical indicators analysis (use exact RSI, MACD values from tool data)
+        5. Financial health assessment with specific metrics
+        6. Clear investment recommendation (BUY/HOLD/SELL) with specific price target
+
+        Format your response as a professional equity research report with:
+        - Clear current stock price (actual number, not $1)
+        - Specific price target (actual number, not $1) 
+        - Detailed rationale using real financial metrics
         
-        1. Current stock data and recent performance
-        2. Key financial metrics (P/E, EPS, Market Cap, etc.)
-        3. Technical indicators analysis
-        4. Financial health assessment
-        5. Investment recommendation based on data
-        
-        Use the available tools to gather real-time data.
+        REMEMBER: Use actual data from tools, never placeholder values.
         """
         return self.agent.run(prompt).content
     
@@ -70,16 +99,23 @@ class FinancialAnalysisAgent:
         symbols_str = ", ".join(symbols)
         logger.info(f"Financial agent comparing stocks: {symbols_str}")
         prompt = f"""
-        Compare the following stocks: {symbols_str}
-        
-        Analyze:
-        1. Current valuations and metrics
-        2. Financial performance comparison
-        3. Technical analysis for each
-        4. Relative strengths and weaknesses
-        5. Investment ranking and recommendations
-        
-        Use financial tools to get real data for comparison.
+        You are a senior financial analyst. Compare the following stocks: {symbols_str}
+
+        CRITICAL INSTRUCTION: You MUST use actual financial data from your tools. Never use placeholder values like $1, $X, or $XXX.
+
+        Steps:
+        1. For EACH stock, call get_stock_data() to get real financial metrics
+        2. For EACH stock, call calculate_technical_indicators() for technical data
+        3. Use the EXACT numbers returned by these tools
+
+        Create a comparison table with actual data including:
+        - Current stock prices (exact values from tools)
+        - Market capitalizations (exact values from tools)
+        - P/E ratios (exact values from tools)
+        - Technical indicators (exact RSI, MACD values)
+        - Investment rankings with specific price targets
+
+        REMEMBER: Every number in your analysis must come from actual tool data, not placeholders.
         """
         return self.agent.run(prompt).content
 
@@ -392,21 +428,29 @@ class ReportGenerationAgent:
         """Generate comprehensive investment report"""
         logger.info(f"Report agent generating investment report for: {symbol}")
         prompt = f"""
-        Generate a comprehensive investment analysis report for {symbol} using the provided analysis data.
-        
-        Structure the report with:
-        1. Executive Summary with clear recommendation
-        2. Financial Analysis highlights
-        3. Technical Analysis summary
-        4. Competitive Position assessment
-        5. Market News and Sentiment impact
-        6. Risk Assessment
-        7. Price Target and Investment Thesis
-        
-        Analysis Data:
+        You are a Managing Director of Equity Research. Generate a comprehensive investment report for {symbol}.
+
+        CRITICAL: The analysis data contains REAL financial numbers. You MUST extract and use these actual values. 
+        NEVER use placeholder values like $1, $X, or $XXX.
+
+        Analysis Data Provided:
         {analysis_data}
-        
-        Create a professional report suitable for investment decision-making.
+
+        Your report MUST include:
+        1. **Current Stock Price**: Extract the exact current price from the analysis data
+        2. **Price Target**: Provide a specific numerical price target based on the analysis
+        3. **Market Cap**: Use the exact market capitalization from the data
+        4. **Financial Metrics**: Use actual P/E ratios, margins, growth rates from the data
+        5. **Investment Recommendation**: Clear BUY/HOLD/SELL with specific rationale
+
+        Report Structure:
+        - **INVESTMENT REPORT: {symbol}**
+        - **Current Price**: [Extract actual price from analysis data]
+        - **12-Month Price Target**: [Provide specific target based on analysis]
+        - **Recommendation**: [BUY/HOLD/SELL]
+        - **Rationale**: [Detailed explanation using actual financial metrics]
+
+        VERIFY: Every financial number in your report comes from the actual analysis data provided.
         """
         return self.agent.run(prompt).content
     
