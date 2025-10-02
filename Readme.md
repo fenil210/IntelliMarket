@@ -1,5 +1,7 @@
 # 📊 IntelliMarket Research Platform
 
+HOSTEL HERE : http://www.neuracore.tech/
+
 <div align="center">
 
 ```
